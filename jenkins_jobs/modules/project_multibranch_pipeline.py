@@ -30,40 +30,9 @@ curly braces by doubling them in the DSL: { -> {{ , otherwise it will be
 interpreted by the python str.format() command.
 
 :Job Parameters:
-    * **sandbox** (`bool`): If the script should run in a sandbox (default
-      false)
-    * **dsl** (`str`): The DSL content or,
-    * **pipeline-scm** (`str`): in case "Pipeline as code" feature is used.
-      Then you should specify:
-
-        * **scm**: single ``scm`` component (or a reference) describing the
-          source code repository
-        * **script-path**: path to the Groovy file containing the job's steps
-          (optional, default: ``Jenkinsfile``)
-
-Note that ``dsl`` and ``pipeline-scm`` parameters are mutually exclusive.
-
-Inline DSL job example:
-
-    .. literalinclude::
-      /../../tests/yamlparser/fixtures/project_pipeline_template001.yaml
-
-Inline DSL job template example:
-
-    .. literalinclude::
-      /../../tests/yamlparser/fixtures/project_pipeline_template002.yaml
-
-"Pipeline as code" example:
-
-    .. literalinclude::
-      /../../tests/yamlparser/fixtures/project_pipeline_template004.yaml
-
-"Pipeline as code" example using templates:
-
-    .. literalinclude::
-      /../../tests/yamlparser/fixtures/project_pipeline_template005.yaml
-
-.. _Pipeline as code: https://jenkins.io/solutions/pipeline/
+    * **remote** (`str`): url to git repo
+    * **includes** (`str`): branches to include, space separated list of wildcards 
+    * **excludes** (`str`): branches to exclude, space separated list of wildcards 
 
 """
 import xml.etree.ElementTree as XML
