@@ -13,26 +13,11 @@
 # under the License.
 
 """
-The Zuul module adds triggers that configure jobs for use with Zuul_. It
-essentially adds the jobs parameters `expected by Zuul`_.
+The Zuul module adds jobs parameters to manually run a build as Zuul would
+have. It is entirely optional, Zuul 2.0+ pass the parameters over Gearman.
 
-With Zuul version 2.0 and later, this is optional. The jobs are
-triggered via the Jenkins Gearman plugin which passes the parameters
-internally.  You might still want to explicitly define parameters to
-retain the possibility of triggering jobs manually via the Jenkins web
-interface (build with parameters).
-
-To change the Zuul notification URL, set a global default::
-
-  - defaults:
-    name: global
-    zuul-url: http://127.0.0.1:8001/jenkins_endpoint
-
-The above URL is the default.
-
-.. _Zuul: http://ci.openstack.org/zuul/
 .. _expected by Zuul: \
-http://ci.openstack.org/zuul/launchers.html#zuul-parameters
+http://docs.openstack.org/infra/zuul/launchers.html#zuul-parameters
 """
 
 import itertools
@@ -110,6 +95,9 @@ ZUUL_PARAMETERS = [
     {'string':
         {'description': 'Patchset of triggering change',
          'name': 'ZUUL_PATCHSET'}},
+    {'string':
+        {'description': 'Zuul considered this job voting or not',
+         'name': 'ZUUL_VOTING'}},
 ]
 
 ZUUL_POST_PARAMETERS = [
@@ -146,38 +134,25 @@ ZUUL_POST_PARAMETERS = [
          'name': 'ZUUL_SHORT_NEWREV'}},
 ]
 
-DEFAULT_URL = 'http://127.0.0.1:8001/jenkins_endpoint'
-
 
 class Zuul(jenkins_jobs.modules.base.Base):
     sequence = 0
 
-    def handle_data(self, parser):
+    def handle_data(self, job_data):
         changed = False
-        jobs = itertools.chain(parser.data.get('job', {}).values(),
-                               parser.data.get('job-template', {}).values())
+        jobs = itertools.chain(
+            job_data.get('job', {}).values(),
+            job_data.get('job-template', {}).values())
         for job in jobs:
             triggers = job.get('triggers')
             if not triggers:
                 continue
 
             if ('zuul' not in job.get('triggers', []) and
-                'zuul-post' not in job.get('triggers', [])):
+                    'zuul-post' not in job.get('triggers', [])):
                 continue
             if 'parameters' not in job:
                 job['parameters'] = []
-            if 'notifications' not in job:
-                job['notifications'] = []
-            # This isn't a good pattern, and somewhat violates the
-            # spirit of the global defaults, but Zuul is working on
-            # a better design that should obviate the need for most
-            # of this module, so this gets it done with minimal
-            # intrusion to the rest of JJB.
-            if parser.data.get('defaults', {}).get('global'):
-                url = parser.data['defaults']['global'].get(
-                    'zuul-url', DEFAULT_URL)
-                notifications = [{'http': {'url': url}}]
-                job['notifications'].extend(notifications)
             if 'zuul' in job.get('triggers', []):
                 job['parameters'].extend(ZUUL_PARAMETERS)
                 job['triggers'].remove('zuul')

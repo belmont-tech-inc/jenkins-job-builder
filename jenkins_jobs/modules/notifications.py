@@ -22,40 +22,63 @@ Jenkins notification plugin.
   :Macro: notification
   :Entry Point: jenkins_jobs.notifications
 
-Example::
-
-  job:
-    name: test_job
-
-    notifications:
-      - http:
-          url: http://example.com/jenkins_endpoint
 """
 
-
 import xml.etree.ElementTree as XML
+
+from jenkins_jobs.errors import JenkinsJobsException
 import jenkins_jobs.modules.base
 
 
-def http_endpoint(parser, xml_parent, data):
+def http_endpoint(registry, xml_parent, data):
     """yaml: http
     Defines an HTTP notification endpoint.
     Requires the Jenkins :jenkins-wiki:`Notification Plugin
     <Notification+Plugin>`.
 
+    :arg str format: notification payload format, JSON (default) or XML
+    :arg str event: job events that trigger notifications: started,
+        completed, finalized or all (default)
     :arg str url: URL of the endpoint
+    :arg str timeout: Timeout in milliseconds for sending notification
+        request (30 seconds by default)
+    :arg str log: Number lines of log messages to send (0 by default).
+        Use -1 for all (use with caution).
 
-    Example::
+    Example:
 
-      notifications:
-        - http:
-            url: http://example.com/jenkins_endpoint
+    .. literalinclude:: \
+    /../../tests/notifications/fixtures/http-endpoint002.yaml
+       :language: yaml
+
     """
     endpoint_element = XML.SubElement(xml_parent,
                                       'com.tikal.hudson.plugins.notification.'
                                       'Endpoint')
+    supported_formats = ['JSON', 'XML']
+    fmt = data.get('format', 'JSON').upper()
+    if fmt not in supported_formats:
+        raise JenkinsJobsException(
+            "format must be one of %s" %
+            ", ".join(supported_formats))
+    else:
+        XML.SubElement(endpoint_element, 'format').text = fmt
+
     XML.SubElement(endpoint_element, 'protocol').text = 'HTTP'
+
+    supported_events = ['started', 'completed', 'finalized', 'all']
+    event = data.get('event', 'all').lower()
+    if event not in supported_events:
+        raise JenkinsJobsException(
+            "event must be one of %s" %
+            ", ".join(supported_events))
+    else:
+        XML.SubElement(endpoint_element, 'event').text = event
+
+    XML.SubElement(endpoint_element, 'timeout').text = str(data.get('timeout',
+                                                           30000))
     XML.SubElement(endpoint_element, 'url').text = data['url']
+    XML.SubElement(endpoint_element, 'loglines').text = str(data.get('log', 0))
 
 
 class Notifications(jenkins_jobs.modules.base.Base):
@@ -64,7 +87,7 @@ class Notifications(jenkins_jobs.modules.base.Base):
     component_type = 'notification'
     component_list_type = 'notifications'
 
-    def gen_xml(self, parser, xml_parent, data):
+    def gen_xml(self, xml_parent, data):
         properties = xml_parent.find('properties')
         if properties is None:
             properties = XML.SubElement(xml_parent, 'properties')
@@ -79,4 +102,4 @@ class Notifications(jenkins_jobs.modules.base.Base):
 
             for endpoint in notifications:
                 self.registry.dispatch('notification',
-                                       parser, endpoints_element, endpoint)
+                                       endpoints_element, endpoint)
